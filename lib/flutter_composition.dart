@@ -3,14 +3,14 @@ library flutter_composition;
 import 'package:flutter/material.dart';
 
 abstract class CompositionState<T extends StatefulWidget> extends State<T> {
-  final _initCbList = Set<VoidCallback>();
+  final _didChangeDependenciesCbList = Set<VoidCallback>();
+  final _didUpdateWidgetCbList = Set<void Function(T oldWidget)>();
+  final _deactivateCbList = Set<VoidCallback>();
   final _disposeCbList = Set<VoidCallback>();
 
-  void setUp() {}
-
-  void onInit([VoidCallback? cb]) {
+  void onDidUpdateWidget([void Function(T oldWidget)? cb]) {
     if (cb != null) {
-      _initCbList.add(cb);
+      _didUpdateWidgetCbList.add(cb);
     }
   }
 
@@ -21,16 +21,51 @@ abstract class CompositionState<T extends StatefulWidget> extends State<T> {
   }
 
   @override
-  void initState() {
-    final Object? debugCheckForReturnedFuture = setUp() as dynamic;
-    assert(
-        debugCheckForReturnedFuture is! Future,
-        'setUp() can\'t return a Future\n'
-        'if need use `async` keyword, consider use a IIFE instead, or `Future.then` method');
-    _initCbList.forEach((cb) {
-      cb();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    _didChangeDependenciesCbList.forEach((cb) {
+      try {
+        cb();
+      } catch (e, stack) {
+        FlutterError.reportError(FlutterErrorDetails(
+          exception: e,
+          stack: stack,
+        ));
+      }
     });
-    super.initState();
+  }
+
+  @override
+  void didUpdateWidget(T oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    _didUpdateWidgetCbList.forEach((cb) {
+      try {
+        cb(oldWidget);
+      } catch (e, stack) {
+        FlutterError.reportError(FlutterErrorDetails(
+          exception: e,
+          stack: stack,
+        ));
+      }
+    });
+  }
+
+  @override
+  void deactivate() {
+    super.deactivate();
+
+    _deactivateCbList.forEach((cb) {
+      try {
+        cb();
+      } catch (e, stack) {
+        FlutterError.reportError(FlutterErrorDetails(
+          exception: e,
+          stack: stack,
+        ));
+      }
+    });
   }
 
   @override
